@@ -414,6 +414,8 @@ function svgVis(k){
 /* ===== 测一测 ===== */
 let answers={};
 function renderTest(){
+ const n=SELFTEST.length;
+ answers={};
  const m=$('#main');
  m.appendChild(el(`<div class="card"><h3><span class="ic">📊</span>你的底层逻辑思维有多强？</h3>
   <p class="muted">对每句话打分：1 = 完全不像我，5 = 非常像我。别想太久，凭第一反应。</p></div>`));
