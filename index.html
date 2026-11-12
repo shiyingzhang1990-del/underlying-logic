@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3730A3">
+<title>底层逻辑 · 追根问底</title>
+<style>
+:root{
+  --accent:#3730A3;
+  --accent2:#7C3AED;
+  --grad:linear-gradient(135deg,#312E81,#7C3AED);
+  --ink:#1e1b4b;
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --bg:#f6f5ff;
+  --card:#ffffff;
+  --good:#059669;
+  --bad:#dc2626;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  color:var(--ink);background:var(--bg);
+  line-height:1.7;-webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:880px;margin:0 auto;padding:0 16px 60px}
+/* header */
+.hero{
+  background:var(--grad);color:#fff;border-radius:0 0 28px 28px;
+  padding:34px 20px 30px;position:relative;overflow:hidden;
+}
+.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.08)}
+.hero::before{content:"";position:absolute;right:20px;bottom:-70px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.06)}
+.hero .big{font-size:44px;line-height:1}
+.hero h1{font-size:27px;margin:14px 0 6px;letter-spacing:1px}
+.hero p{margin:0;opacity:.92;font-size:14px;max-width:560px}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tags span{font-size:12px;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.16);backdrop-filter:blur(4px)}
+/* tabs */
+.tabs{display:flex;gap:6px;margin:18px 0 14px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:6px;position:sticky;top:8px;z-index:20;box-shadow:0 2px 12px rgba(49,46,129,.06)}
+.tab{flex:1;text-align:center;padding:9px 4px;border-radius:10px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;border:none;background:none;transition:.18s}
+.tab.on{background:var(--grad);color:#fff}
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(49,46,129,.04)}
+.card h3{margin:0 0 10px;font-size:18px}
+.card h3 .ic{margin-right:8px}
+.lead{font-size:15px;color:#374151}
+.muted{color:var(--muted);font-size:14px}
+.pill{display:inline-block;font-size:12px;font-weight:700;color:var(--accent);background:rgba(124,58,237,.1);padding:3px 10px;border-radius:999px;margin:0 6px 6px 0}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0}
+.node{flex:1 1 120px;min-width:110px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;font-size:13px;font-weight:600}
+.node b{display:block;font-size:11px;color:var(--accent2);margin-bottom:4px;font-weight:700}
+.arr{color:var(--accent2);font-size:18px;font-weight:700}
+.step{border-left:3px solid var(--accent2);background:#faf9ff;border-radius:10px;padding:12px 14px;margin:10px 0}
+.step .n{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:var(--grad);color:#fff;font-size:12px;font-weight:700;margin-right:8px}
+.step .q{font-weight:700}
+.step .a{color:#374151;font-size:14px;margin-top:6px}
+.mistake{display:flex;gap:12px;padding:12px 0;border-bottom:1px dashed var(--line);align-items:flex-start}
+.mistake:last-child{border-bottom:none}
+.mistake .x{flex:none;width:26px;height:26px;line-height:26px;text-align:center;border-radius:8px;background:#fee2e2;color:var(--bad);font-weight:800}
+.mistake .ok{background:#d1fae5;color:var(--good)}
+.mistake b{display:block;font-size:14px}
+.mistake p{margin:4px 0 0;font-size:13px;color:var(--muted)}
+/* guided mode */
+.pick{display:grid;gap:10px}
+.pick button{text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;font-size:14px;transition:.15s;font-family:inherit;color:var(--ink)}
+.pick button:hover,.pick button.on{border-color:var(--accent2);background:#faf9ff}
+.pick button .t{font-weight:700;display:block;margin-bottom:3px}
+.pick button .d{font-size:13px;color:var(--muted)}
+.reveal{background:var(--grad);color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;margin-top:10px;font-family:inherit}
+.reveal:active{transform:scale(.97)}
+.concl{margin-top:16px;border-radius:14px;padding:16px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #fcd34d}
+.concl b{font-size:15px}
+.epic{display:grid;gap:8px;margin-top:12px}
+.epic div{background:#fff;border-radius:10px;padding:10px 12px;font-size:13px;border:1px solid var(--line)}
+.epic b{color:var(--accent2)}
+/* puzzle */
+.phead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.pcat{font-size:12px;font-weight:700;color:var(--accent2);background:rgba(124,58,237,.1);padding:3px 10px;border-radius:999px}
+.pnum{font-size:12px;color:var(--muted)}
+.vis{background:#faf9ff;border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0;text-align:center}
+.pq{font-size:16px;font-weight:700;margin:4px 0 14px}
+.opts{display:grid;gap:10px}
+.opt{display:flex;align-items:flex-start;gap:10px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;font-size:14px;transition:.15s;text-align:left;font-family:inherit;color:var(--ink)}
+.opt .k{flex:none;width:22px;height:22px;line-height:22px;text-align:center;border-radius:7px;background:#f3f4f6;font-size:12px;font-weight:700;color:var(--muted)}
+.opt:hover{border-color:#c7d2fe}
+.opt.correct{border-color:var(--good);background:#ecfdf5}
+.opt.correct .k{background:var(--good);color:#fff}
+.opt.wrong{border-color:var(--bad);background:#fef2f2}
+.opt.wrong .k{background:var(--bad);color:#fff}
+.feedback{display:none;margin-top:14px;border-radius:12px;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0}
+.feedback.show{display:block}
+.feedback.wrong{background:#fef2f2;border-color:#fecaca}
+.feedback .skill{display:inline-block;font-size:12px;font-weight:700;color:var(--accent);background:rgba(124,58,237,.1);padding:2px 10px;border-radius:999px;margin-top:8px}
+.next{margin-top:14px;width:100%;background:var(--grad);color:#fff;border:none;border-radius:12px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:none}
+.next.show{display:block}
+.next:active{transform:scale(.98)}
+.scorebar{display:flex;gap:10px;margin-bottom:14px}
+.scorebar div{flex:1;text-align:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}
+.scorebar b{display:block;font-size:22px;color:var(--accent)}
+.scorebar span{font-size:12px;color:var(--muted)}
+/* self test */
+.selfq{margin-bottom:16px}
+.selfq .sq{font-size:15px;font-weight:600;margin-bottom:10px}
+.scale{display:flex;gap:8px}
+.scale button{flex:1;padding:10px 0;border-radius:10px;border:1.5px solid var(--line);background:#fff;cursor:pointer;font-size:14px;font-weight:700;color:var(--muted);font-family:inherit}
+.scale button.on{border-color:var(--accent2);background:var(--accent2);color:#fff}
+.submit{width:100%;background:var(--grad);color:#fff;border:none;border-radius:12px;padding:13px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px}
+.submit:disabled{opacity:.5;cursor:not-allowed}
+.result{margin-top:16px;border-radius:16px;padding:20px;text-align:center;display:none}
+.result.show{display:block}
+.result .lv{font-size:34px}
+.result h4{margin:10px 0 6px;font-size:20px}
+.result p{color:#374151;font-size:14px;margin:6px auto;max-width:520px;text-align:left}
+.footer{text-align:center;color:#9ca3af;font-size:12px;margin-top:26px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="big">🧭</div>
+  <h1>底层逻辑 · 追根问底</h1>
+  <p>看见一个现象，别停在表面——追问它为什么存在、靠什么条件成立、条件变了会怎样，一路挖到最根本的原因。</p>
+  <div class="tags">
+    <span>七步追根法</span>
+    <span>E-P-I-C 思维</span>
+    <span>反事实推演</span>
+    <span>根因分析</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab on" data-m="browse">浏览</button>
+    <button class="tab" data-m="guide">追问</button>
+    <button class="tab" data-m="play">闯关</button>
+    <button class="tab" data-m="test">测一测</button>
+  </div>
+  <div id="main"></div>
+  <div class="footer">柚然 · 底层逻辑训练营 · 源于 93 篇「底层逻辑」研究文献</div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
+let mode='browse',scores={},level=null;
+
+/* ---------- data ---------- */
+const PUZZLES=[
+ {cat:'找根本原因',icon:'🔍',q:'一个城市每逢下雨就大堵车。追根问底，下面哪一项是「底层逻辑」层面的原因？',
+  opts:['今天突然下暴雨了','路面湿滑导致车速下降、事故增多','城市路网结构单一、职住严重分离，高峰期车流集中挤在少数干道','部分司机雨天不敢开车、开得特别慢'],
+  a:2,why:'前两项是「触发原因/直接原因」，第 4 项是加剧因素。根本原因是第三项——路网结构与职住布局这个「结构性矛盾」：只要它不变，不管下不下雨、司机急不急，拥堵都会周期性发作。',skill:'区分触发原因与根本结构'},
+ {cat:'找根本原因',icon:'🔍',q:'一个学生的数学成绩这学期突然下滑。哪个追问最接近「底层逻辑」？',
+  opts:['这次期末考试题目比平时难','他最近跟同桌关系不好、老分心','他从小学就没建立数感，一直靠死记硬背套公式，越到高年级越撑不住','他上周生了一场病'],
+  a:2,why:'「题目难」「分心」「生病」都是偶然/暂时因素。真正稳定、能解释长期趋势的是第三项——学习方法与数感的结构性缺陷。底层逻辑要抓「稳定且能解释同类现象」的原因。',skill:'抓稳定原因，而非偶然因素'},
+ {cat:'找根本原因',icon:'🔍',q:'一家奶茶店天天排队爆火。它「火」的底层机制最可能是？',
+  opts:['排队的人确实很多','店员服务态度热情','「限量/联名」制造稀缺感 + 产品标准化可复购，形成持续的注意力与复购循环','店铺开在了市中心商圈'],
+  a:2,why:'「排队人多」是结果不是原因，「态度好」「位置好」只是加分项。底层机制是第三项：用稀缺感制造话题、用标准化产品承接复购——这是能迁移复制的那层逻辑。',skill:'透过表象看可复制的机制'},
+ {cat:'找根本原因',icon:'🔍',q:'手机用久了越来越卡。追到底，最根本的那层矛盾是？',
+  opts:['装的 App 太多了','电池老化了','硬件性能与 App 需求持续膨胀之间的结构性不匹配','屏幕有划痕'],
+  a:2,why:'「App 多」「电池老化」是表象，它们都指向同一个底层矛盾：软件需求无限膨胀，硬件性能相对有限。理解了这层，才能理解「为什么所有手机都会卡」。',skill:'需求无限 vs 资源有限的结构矛盾'},
+ {cat:'由表及里排序',icon:'🪜',q:'把「直播带货为什么能火」的追问，按「由表及里」从浅到深排序：\n① 主播喊「全网最低价」 ② 直播间有互动抢购氛围 ③ 平台算法精准推送 ④ 直播技术大幅降低了交易信任成本，主播成了「信任中介」',
+  opts:['①→②→③→④','④→③→②→①','③→②→①→④','②→①→③→④'],
+  a:0,why:'由表及里：话术（①）→ 氛围（②）→ 算法分发（③）→ 信任成本（④）。越往深处，越接近「为什么直播能替代传统电商」的根本原因。',skill:'由表及里的追问顺序',vis:'layers'},
+ {cat:'识别反事实',icon:'🔄',q:'下面哪一句属于「反事实推演」（问：如果没有这个条件，会怎样）？',
+  opts:['为什么早高峰会堵车？','如果没有「早晚高峰」这个条件，堵车还会这么严重吗？','堵车具体影响了哪些人？','堵车最后会导致什么后果？'],
+  a:1,why:'反事实推演的核心是「撤掉某个条件，想象世界会怎样」。第 2 项正是这样——通过想象「没有高峰」来检验「高峰」是不是关键条件。',skill:'识别反事实追问',vis:'counter'},
+ {cat:'找必要条件',icon:'🔑',q:'追问「一线城市房价为什么高」的存在条件时，最根本的那个「必要条件」是？',
+  opts:['有炒房客在投机','开发商定价策略高','土地供给受控（垄断）+ 优质就业/教育/医疗资源高度集聚在少数城市','银行愿意放房贷'],
+  a:2,why:'炒房客、定价、信贷都是「放大器」，不是根。根本条件是第三项：供给端土地垄断 + 需求端资源集聚，两者共同制造了「结构性稀缺」。撤掉它，房价支撑立刻松动。',skill:'锁定必要条件而非放大器',vis:'cond'},
+ {cat:'E-P-I-C 顺序',icon:'🧩',q:'「现象→规律→推演→迁移」对应 E-P-I-C 四步，哪一组匹配正确？',
+  opts:['E=描述现象,P=下结论,I=造概念,C=找本质','E=抓本质矛盾,P=提炼规律,I=情景推演,C=界定适用范围','E=推演后果,P=找矛盾,I=提炼概念,C=描述现象','四步之间没有先后顺序'],
+  a:1,why:'E-P-I-C：Essence 本质洞察（抓矛盾）→ Pattern 模式提炼（抽象规律）→ Implication 意涵衍生（情景推演）→ Context 语境重构（界定边界）。',skill:'E-P-I-C 认知链条',vis:'epic'},
+ {cat:'E-P-I-C 识别',icon:'🧩',q:'「如果取消 KPI 考核，员工会不会直接躺平？」这一步属于 E-P-I-C 的哪一步？',
+  opts:['Essence 本质洞察','Pattern 模式提炼','Implication 意涵衍生（情景推演）','Context 语境重构'],
+  a:2,why:'「如果…会怎样」是典型的情景推演，即 Implication——从已经提炼出的规律出发，推演它在条件变化下的后果。',skill:'识别 Implication'},
+ {cat:'E-P-I-C 识别',icon:'🧩',q:'「这个规律只在制造业成立，搬到服务业就失效了」——这是在做什么？',
+  opts:['Essence 本质洞察','Pattern 模式提炼','Implication 意涵衍生','Context 语境重构（界定边界）'],
+  a:3,why:'界定规律的适用范围、找出它「在什么语境下才成立」，正是 Context 语境重构。它防止我们把个案规律过度泛化。',skill:'识别 Context'},
+ {cat:'识破误区',icon:'⚠️',q:'「自从公司装了监控，员工效率就提高了，所以是监控提高了效率。」这个结论最大的漏洞是？',
+  opts:['监控确实能让人不敢偷懒','把「相关性」当成了「因果性」——可能是同期推行的其他管理改革起的作用','员工在说谎','监控样本太少'],
+  a:1,why:'A、B 同时发生，不代表 A 导致 B。可能还有第三个变量（同时推行的改革、行业回暖等）。根因分析要警惕「相关 ≠ 因果」。',skill:'相关 ≠ 因果'},
+ {cat:'识破误区',icon:'⚠️',q:'「学霸都熬夜，所以熬夜能让人成绩变好。」这个推理的问题在哪？',
+  opts:['熬夜确实有科学依据','幸存者偏差 + 混淆变量：学霸本身学习能力强，熬夜很可能是有害的额外负担','学霸在说谎','熬夜时间不够长'],
+  a:1,why:'「学霸」和「熬夜」可能只是同时出现，甚至熬夜是在拖累他们。把两个并存的特征当成因果，是典型的混淆变量谬误。',skill:'混淆变量 / 幸存者偏差'},
+ {cat:'识破误区',icon:'⚠️',q:'「因为 A 先发生、B 后发生，所以 A 一定导致 B。」这种推理是？',
+  opts:['完全正确的因果推理','事后归因谬误——时间先后不等于因果关系','标准的演绎推理','严谨的归纳推理'],
+  a:1,why:'「先发生」只是因果的必要条件之一，远非充分。公鸡打鸣在天亮之前，但打鸣并不「导致」天亮。',skill:'时序 ≠ 因果',vis:'chain'},
+ {cat:'条件类型',icon:'📎',q:'「有氧气，火才能燃烧。」氧气是燃烧的？',
+  opts:['充分条件','必要条件','充分必要条件','既非充分也非必要'],
+  a:1,why:'没有氧气一定不能烧（必要性），但只有氧气也不会烧（还差可燃物、温度）。所以氧气是「必要条件」而非「充分条件」。追根问底常要分清这两者。',skill:'必要条件 vs 充分条件'},
+ {cat:'条件类型',icon:'📎',q:'「只要下雨，地面就会湿。」那么「下雨」是「地面湿」的？',
+  opts:['充分条件','必要条件','充分必要条件','都不是'],
+  a:0,why:'下雨一定导致地面湿（充分性），但地面湿不一定因为下雨（浇水、洒水车也行），所以不是必要条件。',skill:'充分条件的判定'},
+ {cat:'追问深度',icon:'⛏️',q:'追根问底最容易犯的错是「停在直接原因」。下面哪个是「停在直接原因」？',
+  opts:['「为什么亏钱」→「成本高」→ 继续追问「为什么成本高」→ 再往下挖','「为什么亏钱」→「销售差」就停住了，不再追问「销售为什么差、产品为什么卖不动」','「为什么亏钱」→ 拆解成本结构做实验','「为什么亏钱」→ 同时分析多个因素'],
+  a:1,why:'「销售差」只是直接原因，真正的根（产品没竞争力？渠道失效？需求变了？）还在下面几层。5-Whys 的精髓就是「别在第一个『因为』停下」。',skill:'5 Whys 深度',vis:'whys'}
+];
+
+const GUIDES=[
+ {t:'为什么「内卷式竞争」越来越普遍？',d:'经济/竞争领域（文献[5]王志章）',steps:[
+  ['看见现象','很多行业越来越卷：投入越来越多，收益却不见涨，大家都在做同样的努力。'],
+  ['为什么存在？','因为在有限的市场里争夺同质化的机会——竞争从「比谁更好」悄悄变成了「比谁更耗」。'],
+  ['存在条件是什么？','市场增量放缓（存量博弈）+ 产品/能力同质化 + 评价标准单一（只看 KPI、学历、排名）。'],
+  ['条件消失会怎样？','若评价标准多元化、市场出现新增长点，竞争会从「内卷」转向「差异化创新」。'],
+  ['受哪些因素影响？','资源约束、有效需求不足、创新能力不足、制度激励扭曲、主体短期化行为（四因素框架）。'],
+  ['具体影响是什么？','低收益、低质量、高消耗、高传导——投入上升但效率、质量、福利没同步提升，还向同行与上下游传导。'],
+  ['最终呈现什么后果？','行业秩序恶化、企业创新受阻、资源错配、多方权益受损，长期削弱实体经济根基。']],
+  root:'存量博弈 + 同质化 + 单一评价标准，三者叠加形成的结构性矛盾。',
+  epic:['E 本质：同质化存量竞争 vs 有限市场的张力','P 规律：内卷 = 存量 × 同质 × 单一标准','I 推演：一旦放开标准或出现增量，内卷让位于创新','C 边界：适用于增长见顶的成熟行业，不适用于高增长蓝海']},
+ {t:'为什么刷短视频停不下来？',d:'注意力/成瘾机制领域',steps:[
+  ['看见现象','明明只想刷 5 分钟，一抬头两小时就过去了。'],
+  ['为什么存在？','短视频精准命中了大脑的「即时奖励」回路，内容「下一个可能更好」让人不断滑动。'],
+  ['存在条件是什么？','无限流推荐算法 + 十几秒一剂的高密度刺激 + 手机随身随时可刷。'],
+  ['条件消失会怎样？','若算法不再「猜你喜欢」、内容没有即时反馈，上瘾就失去了抓手。'],
+  ['受哪些因素影响？','算法推荐、内容节奏、可变奖励机制（「不确定的下一个」最让人上瘾）、用户自控力。'],
+  ['具体影响是什么？','时间被切碎、注意力下降、深度思考变弱、延迟满足能力受损。'],
+  ['最终呈现什么后果？','长期专注力与创造力下降，「想看」变成「被喂」，时间主权让渡给了平台。']],
+  root:'「无限流 + 可变奖励 + 低门槛」精准利用了大脑的奖赏回路。',
+  epic:['E 本质：内容供给无限 vs 注意力有限的矛盾','P 规律：成瘾 = 无限流 × 可变奖励 × 低门槛','I 推演：若取消算法或增加使用摩擦，留存会骤降','C 边界：适用于强算法平台，不适用于工具类产品']},
+ {t:'为什么一线城市房价高？',d:'城市/资源分配领域',steps:[
+  ['看见现象','同样一套房，一线城市的价格是三四线城市的数倍。'],
+  ['为什么存在？','因为稀缺——好地段土地有限，而想挤进来的人很多。'],
+  ['存在条件是什么？','土地供给受控（垄断）+ 优质就业/教育/医疗资源高度集聚在少数城市。'],
+  ['条件消失会怎样？','若优质资源均衡分布、土地供给放开，房价的支撑就会松动。'],
+  ['受哪些因素影响？','土地财政与供给垄断、货币信贷、人口流动、资源集聚度、调控政策。'],
+  ['具体影响是什么？','居住成本高企、年轻人购房压力大、消费被挤压、资产向少数人集中。'],
+  ['最终呈现什么后果？','人口与资源进一步向大城市集中或被迫外溢，「虹吸」与「挤出」并存，影响社会公平与生育意愿。']],
+  root:'土地供给垄断 + 优质资源过度集聚，共同制造的结构性稀缺。',
+  epic:['E 本质：有限优质资源 vs 无限需求的矛盾','P 规律：高房价 = 稀缺 × 集聚 × 信贷','I 推演：若资源均衡或供给放开，价格锚松动','C 边界：适用于资源集聚型大城市，不适用于人口流出城市']}
+];
+
+const SELFTEST=[
+ '看到一个现象，我会习惯性地追问「为什么会这样」。',
+ '我很少停在第一个原因，会继续往下挖几层。',
+ '做判断前，我会先想「这件事成立需要哪些前提条件」。',
+ '我会主动假设「如果没有这个条件，结果会怎样」。',
+ '我习惯把个例抽象成规律，并检验它是否普遍成立。',
+ '下结论时，我会想清楚它的适用范围和边界。',
+ '我能区分「相关性」和「因果性」。',
+ '面对复杂问题，我会先抓主要矛盾，而不是眉毛胡子一把抓。'
+];
+
+/* ---------- render ---------- */
+const tabs=$$('.tab');
+tabs.forEach(t=>t.addEventListener('click',()=>{
+  tabs.forEach(x=>x.classList.remove('on'));t.classList.add('on');
+  mode=t.dataset.m;render();
+}));
+
+function el(html){const d=document.createElement('div');d.innerHTML=html.trim();return d.firstChild}
+
+function render(){$('#main').innerHTML='';
+ if(mode==='browse')renderBrowse();
+ if(mode==='guide')renderGuide();
+ if(mode==='play')renderPlay();
+ if(mode==='test')renderTest();window.scrollTo({top:0});}
+
+/* ===== 浏览 ===== */
+function renderBrowse(){
+ const m=$('#main');
+ m.appendChild(el(`<div class="card"><h3><span class="ic">🧭</span>什么是「底层逻辑」</h3>
+  <p class="lead">底层逻辑，是现象背后<strong>最根本的运行规律</strong>——是「为什么」一路追问到底之后，那层相对稳定、能解释一大类现象的原因。</p>
+  <p class="muted">表层现象千变万化（今天下雨、这次考砸、这家店火），底层逻辑相对稳定（路网结构、学习方法、信任机制）。抓住底层逻辑，你就能举一反三、预测变化。</p>
+  <div style="margin-top:10px">
+   <span class="pill">企业家精神</span><span class="pill">教育公平</span><span class="pill">内卷式竞争</span><span class="pill">科技评价</span>
+   <span class="pill">数字政府</span><span class="pill">五育融合</span><span class="pill">公司法</span><span class="pill">AI赋能制造</span>
+   <span class="pill">生物演化</span><span class="pill">财政金融</span><span class="pill">共同富裕</span><span class="pill">智慧农业</span>
+  </div>
+  <p class="muted" style="margin-top:8px">这 93 篇文献横跨经济、教育、法律、科技、社会治理——每个领域都在问同一件事：<em>「这个东西之所以这样，最根本的驱动力与条件是什么？」</em></p>
+ </div>`));
+ m.appendChild(el(`<div class="card"><h3><span class="ic">⛏️</span>七步追根法</h3>
+  <p class="muted">把「看见现象」到「抓住根本原因」拆成七步，每一步都是一层更深的追问：</p>
+  <div class="step"><span class="n">1</span><span class="q">看见现象</span><div class="a">先客观描述：发生了什么、和平时有什么不同。</div></div>
+  <div class="step"><span class="n">2</span><span class="q">为什么存在？</span><div class="a">它为什么会出现、而不是没有出现？</div></div>
+  <div class="step"><span class="n">3</span><span class="q">存在的条件是什么？</span><div class="a">它靠哪些「必要条件」支撑？缺了哪个就撑不住？</div></div>
+  <div class="step"><span class="n">4</span><span class="q">条件消失会怎样？</span><div class="a">反事实推演：撤掉某个条件，现象还会在吗？</div></div>
+  <div class="step"><span class="n">5</span><span class="q">受哪些因素影响？</span><div class="a">在这些条件下，哪些因素在放大或抑制它？</div></div>
+  <div class="step"><span class="n">6</span><span class="q">有什么具体影响？</span><div class="a">这些因素各自带来了什么看得见的变化？</div></div>
+  <div class="step"><span class="n">7</span><span class="q">最终呈现什么后果？</span><div class="a">把影响串起来，推到最后的长期结果。</div></div>
+ </div>`));
+ m.appendChild(el(`<div class="card"><h3><span class="ic">🧩</span>E-P-I-C 认知逻辑链条</h3>
+  <p class="muted">七步追根之后，再用四步把「根」锻造成可复用的认知：</p>
+  <div class="flow">
+   <div class="node"><b>E · Essence</b>本质洞察<br>抓主要矛盾</div><span class="arr">→</span>
+   <div class="node"><b>P · Pattern</b>模式提炼<br>抽象成规律</div><span class="arr">→</span>
+   <div class="node"><b>I · Implication</b>意涵衍生<br>情景推演</div><span class="arr">→</span>
+   <div class="node"><b>C · Context</b>语境重构<br>界定边界</div>
+  </div>
+  <p class="muted">从「这一个现象」走到「这一类规律」，再走到「它在哪里成立、哪里不成立」。</p>
+ </div>`));
+ m.appendChild(el(`<div class="card"><h3><span class="ic">⚠️</span>追根问底的 6 个常见误区</h3>
+  <div class="mistake"><span class="x">✕</span><div><b>把表象当本质</b><p>「排队人多」是结果，不是「火」的原因。</p></div></div>
+  <div class="mistake"><span class="x">✕</span><div><b>停在直接原因</b><p>「销售差」就停住，不再问「销售为什么差」。</p></div></div>
+  <div class="mistake"><span class="x">✕</span><div><b>把相关性当因果</b><p>「监控装了，效率高了」——可能另有原因。</p></div></div>
+  <div class="mistake"><span class="x">✕</span><div><b>把必要条件当充分条件</b><p>有氧气才能烧，但「只有氧气」也烧不起来。</p></div></div>
+  <div class="mistake"><span class="x">✕</span><div><b>时序当因果</b><p>公鸡打鸣在天亮前，但打鸣不「导致」天亮。</p></div></div>
+  <div class="mistake"><span class="x">✕</span><div><b>过度泛化</b><p>把「制造业的规律」硬套到服务业，忽略适用边界。</p></div></div>
+ </div>`));
+ m.appendChild(el(`<div class="card"><h3><span class="ic">💪</span>如何修炼底层逻辑</h3>
+  <div class="step"><span class="n">1</span><span class="q">多问「为什么」，别在第一个答案停下</span><div class="a">连续追问 3~5 层，往往第一层只是触发原因。</div></div>
+  <div class="step"><span class="n">2</span><span class="q">练反事实思维</span><div class="a">遇事先问「如果没有 X，还会这样吗」，检验 X 是否关键。</div></div>
+  <div class="step"><span class="n">3</span><span class="q">找张力、抓主要矛盾</span><div class="a">任何现象背后都有一对矛盾，找到它，本质就浮出来了。</div></div>
+  <div class="step"><span class="n">4</span><span class="q">抽象化、模式化</span><div class="a">把个案提炼成「A = X × Y × Z」式的规律，再迁移验证。</div></div>
+ </div>`));
+}
+
+/* ===== 追问 ===== */
+let guide=null,guideStep=-1;
+function renderGuide(){
+ const m=$('#main');
+ m.appendChild(el(`<div class="card"><h3><span class="ic">🪜</span>选一个现象，跟着走一遍七步追根</h3>
+  <p class="muted">选一个你感兴趣的现象，然后一步步往下挖，看看最后挖出的「根本原因」是什么。</p>
+  <div class="pick">${GUIDES.map((g,i)=>`<button data-i="${i}" class="${i===0?'on':''}"><span class="t">${g.t}</span><span class="d">${g.d}</span></button>`).join('')}</div>
+ </div>`));
+ const pick=document.createElement('div');pick.id='guide-body';m.appendChild(pick);
+ m.querySelectorAll('.pick button').forEach(b=>b.addEventListener('click',()=>{
+   m.querySelectorAll('.pick button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+   guide=+b.dataset.i;guideStep=-1;drawGuide();}));
+ guide=0;drawGuide();
+}
+function drawGuide(){
+ const box=$('#guide-body');if(!box)return;box.innerHTML='';const g=GUIDES[guide];
+ const wrap=el(`<div class="card"><h3><span class="ic">⛏️</span>${g.t}</h3><div id="steps"></div></div>`);box.appendChild(wrap);
+ const steps=$('#steps');
+ g.steps.forEach((s,i)=>{
+  const done=i<=guideStep;
+  const d=el(`<div class="step" style="border-left-color:${done?'var(--good)':'var(--accent2)'}">
+    <span class="n">${i+1}</span><span class="q">${s[0]}</span>
+    <div class="a">${done?s[1]:'<span class="muted">（点击揭示）</span>'}</div>
+    ${!done?'<button class="reveal" data-i="'+i+'">揭示这一层</button>':''}
+  </div>`);
+  if(!done){d.querySelector('.reveal').addEventListener('click',()=>{guideStep=i;drawGuide();})}
+  steps.appendChild(d);
+ });
+ if(guideStep>=g.steps.length-1){
+  box.appendChild(el(`<div class="concl"><b>🎯 挖到的根本原因</b><p style="margin:6px 0 0">${g.root}</p>
+   <div class="epic">${g.epic.map(e=>`<div>${e.replace('E ','<b>E </b>').replace('P ','<b>P </b>').replace('I ','<b>I </b>').replace('C ','<b>C </b>')}</div>`).join('')}</div>
+   <button class="reveal" style="margin-top:12px" onclick="guideStep=-1;guide=null;renderGuide()">再走一遍另一个现象</button>
+  </div>`));
+ }
+}
+
+/* ===== 闯关 ===== */
+let pi=0,score=0,streak=0,maxStreak=0,order=[],ans=0;
+function renderPlay(){
+ const m=$('#main');
+ m.appendChild(el(`<div class="scorebar"><div><b id="sc">0</b><span>得分</span></div><div><b id="st">0</b><span>连对</span></div><div><b id="pi">1</b><span>/ ${PUZZLES.length}</span></div></div>`));
+ const box=document.createElement('div');box.id='play-box';m.appendChild(box);
+ order=[...PUZZLES.keys()].sort(()=>Math.random()-.5);
+ pi=0;score=0;streak=0;maxStreak=0;drawPuzzle();
+}
+function drawPuzzle(){
+ const box=$('#play-box');if(!box)return;
+ const idx=order[pi];const p=PUZZLES[idx];ans=p.a;
+ $('#pi').textContent=(pi+1);$('#sc').textContent=score;$('#st').textContent=streak;
+ box.innerHTML='';
+ const vis=svgVis(p.vis);
+ const card=el(`<div class="card">
+  <div class="phead"><span class="pcat">${p.cat}</span><span class="pnum">${p.icon} 第 ${pi+1} / ${PUZZLES.length} 题</span></div>
+  <div class="pq">${p.q.replace(/\n/g,'<br>')}</div>
+  ${vis?`<div class="vis">${vis}</div>`:''}
+  <div class="opts">${p.opts.map((o,i)=>`<button class="opt" data-i="${i}"><span class="k">${'ABCD'[i]}</span><span>${o}</span></button>`).join('')}</div>
+  <div class="feedback" id="fb"></div>
+  <button class="next" id="next" onclick="nextPuzzle()">下一题 →</button>
+ </div>`);
+ box.appendChild(card);
+ card.querySelectorAll('.opt').forEach(o=>o.addEventListener('click',()=>answer(+o.dataset.i)));
+}
+function answer(i){
+ const p=PUZZLES[order[pi]];
+ const fb=$('#fb');fb.classList.add('show');
+ const opts=$$('#play-box .opt');
+ opts.forEach(o=>o.style.pointerEvents='none');
+ if(i===p.a){opts[i].classList.add('correct');score+=10;streak++;maxStreak=Math.max(maxStreak,streak);
+  fb.classList.remove('wrong');fb.innerHTML=`<b>✅ 答对了！+10</b><p style="margin:6px 0 0">${p.why}</p><span class="skill">🧠 ${p.skill}</span>`;}
+ else{opts[i].classList.add('wrong');opts[p.a].classList.add('correct');streak=0;
+  fb.classList.add('wrong');fb.innerHTML=`<b>❌ 再想想</b><p style="margin:6px 0 0">正确答案是 <b>${'ABCD'[p.a]}</b>。${p.why}</p><span class="skill">🧠 ${p.skill}</span>`;}
+ $('#sc').textContent=score;$('#st').textContent=streak;$('#next').classList.add('show');
+}
+function nextPuzzle(){
+ pi++;
+ if(pi>=PUZZLES.length){finishPlay();return;}
+ drawPuzzle();
+}
+function finishPlay(){
+ const box=$('#play-box');const total=PUZZLES.length*10;
+ const ratio=score/total;
+ let lv=ratio>=.85?'🏆 底层逻辑高手':ratio>=.6?'⚡ 追根小能手':ratio>=.4?'🌱 正在扎根':'🕳️ 还需多挖几层';
+ let tip=ratio>=.85?'你已经习惯透过表象抓根本、做反事实推演，是这个训练营的尖子。':
+   ratio>=.6?'方向对了，继续练「区分相关与因果」「找必要条件」这两关会更稳。':
+   ratio>=.4?'你已经会追问了，但常停在直接原因——记住 5-Whys，别在第一个「因为」停下。':
+   '别灰心，底层逻辑是可以练出来的。先回去「浏览」和「追问」两节，把七步追根法走熟。';
+ box.innerHTML=`<div class="card" style="text-align:center">
+  <div style="font-size:52px">${lv.split(' ')[0]}</div>
+  <h3 style="margin:10px 0 4px">${lv}</h3>
+  <p class="muted">得分 ${score} / ${total} · 最长连对 ${maxStreak}</p>
+  <p style="text-align:left;background:#faf9ff;border-radius:12px;padding:14px;margin-top:12px">${tip}</p>
+  <button class="next show" style="display:block" onclick="renderPlay()">再来一轮（题目会重新排序）</button>
+ </div>`;window.scrollTo({top:0});}
+function svgVis(k){
+ if(!k)return'';
+ const c1='#312E81',c2='#7C3AED',gold='#f59e0b',red='#ef4444',grn='#10b981';
+ if(k==='layers')return `<svg width="280" height="120" viewBox="0 0 280 120"><circle cx="140" cy="60" r="54" fill="#e0e7ff"/><circle cx="140" cy="60" r="38" fill="#c7d2fe"/><circle cx="140" cy="60" r="22" fill="${c2}"/><text x="140" y="64" text-anchor="middle" font-size="11" fill="#fff">根</text><text x="140" y="18" text-anchor="middle" font-size="9" fill="${c1}">表象</text><text x="226" y="58" text-anchor="middle" font-size="9" fill="${c1}">表</text><text x="54" y="58" text-anchor="middle" font-size="9" fill="${c1}">里</text></svg>`;
+ if(k==='counter')return `<svg width="280" height="110" viewBox="0 0 280 110"><rect x="20" y="30" width="90" height="44" rx="10" fill="#eef2ff" stroke="${c2}"/><text x="65" y="57" text-anchor="middle" font-size="13" fill="${c1}">有高峰</text><text x="160" y="57" font-size="18" fill="${c2}">➜</text><rect x="180" y="30" width="90" height="44" rx="10" fill="#fef2f2" stroke="${red}"/><text x="225" y="57" text-anchor="middle" font-size="13" fill="${c1}">堵车？</text><text x="140" y="96" text-anchor="middle" font-size="11" fill="#6b7280">撤掉条件，想象世界</text></svg>`;
+ if(k==='cond')return `<svg width="280" height="110" viewBox="0 0 280 110"><rect x="18" y="34" width="74" height="40" rx="8" fill="#eef2ff" stroke="${c2}"/><text x="55" y="59" text-anchor="middle" font-size="11" fill="${c1}">土地垄断</text><text x="102" y="59" font-size="16" fill="${c2}">＋</text><rect x="116" y="34" width="74" height="40" rx="8" fill="#eef2ff" stroke="${c2}"/><text x="153" y="59" text-anchor="middle" font-size="11" fill="${c1}">资源集聚</text><text x="202" y="59" font-size="16" fill="${c2}">＝</text><rect x="212" y="34" width="54" height="40" rx="8" fill="${c2}"/><text x="239" y="59" text-anchor="middle" font-size="11" fill="#fff">稀缺</text></svg>`;
+ if(k==='epic')return `<svg width="300" height="70" viewBox="0 0 300 70">${[['E',12,c1],['P',86,c1],['I',160,c1],['C',234,c1]].map((b,i)=>{const x=b[1];return `<rect x="${x}" y="14" width="52" height="34" rx="9" fill="${i%2?c2:c1}"/><text x="${x+26}" y="36" text-anchor="middle" font-size="15" fill="#fff" font-weight="700">${b[0]}</text>${i<3?`<text x="${x+62}" y="36" font-size="14" fill="${c2}">→</text>`:''}`}).join('')}</svg>`;
+ if(k==='chain')return `<svg width="280" height="70" viewBox="0 0 280 70"><text x="40" y="40" font-size="16" fill="${c1}">A</text><text x="80" y="40" font-size="16" fill="${c2}">→</text><text x="120" y="40" font-size="16" fill="${c1}">B</text><text x="180" y="40" font-size="14" fill="#6b7280">先后 ≠ 因果</text></svg>`;
+ if(k==='whys')return `<svg width="280" height="120" viewBox="0 0 280 120">${[0,1,2,3].map((i,y)=>{const w=150-i*26;const x=(280-w)/2;const yy=10+y*26;return `<rect x="${x}" y="${yy}" width="${w}" height="22" rx="6" fill="${i===3?c2:'#e0e7ff'}"/><text x="${x+w/2}" y="${yy+15}" text-anchor="middle" font-size="11" fill="${i===3?'#fff':c1}">${i===3?'根本原因':'为什么？'}</text>`}).join('')}</svg>`;
+ return'';
+}
+
+/* ===== 测一测 ===== */
+let answers={};
+function renderTest(){
+ const m=$('#main');
+ m.appendChild(el(`<div class="card"><h3><span class="ic">📊</span>你的底层逻辑思维有多强？</h3>
+  <p class="muted">对每句话打分：1 = 完全不像我，5 = 非常像我。别想太久，凭第一反应。</p></div>`));
+ const box=document.createElement('div');box.className='card';m.appendChild(box);
+ SELFTEST.forEach((q,i)=>{
+  const d=el(`<div class="selfq"><div class="sq">${i+1}. ${q}</div>
+   <div class="scale">${[1,2,3,4,5].map(v=>`<button data-v="${v}">${v}</button>`).join('')}</div></div>`);
+  d.querySelectorAll('.scale button').forEach(b=>b.addEventListener('click',()=>{
+    d.querySelectorAll('.scale button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    answers[i]=+b.dataset.v;
+    const filled=Object.keys(answers).length;
+    $('#sub').disabled=filled<n;
+  }));
+  box.appendChild(d);
+ });
+ const sub=el(`<button class="submit" id="sub" disabled>提交，看看我的等级</button>`);box.appendChild(sub);
+ const res=el(`<div class="result" id="res"></div>`);box.appendChild(res);
+ sub.addEventListener('click',calcTest);
+}
+function calcTest(){
+ const n=SELFTEST.length;if(Object.keys(answers).length<n)return;
+ const total=Object.values(answers).reduce((a,b)=>a+b,0);
+ let emoji,lv,desc,tip;
+ if(total<=16){emoji='🌊';lv='表层思维';desc='你更习惯停在现象和直接原因上，看到的往往是「发生了什么」，还没养成追问的习惯。';tip='从今天起，对身边任何一件让你好奇的事连问三个「为什么」，别在第一个答案停下。';}
+ else if(total<=28){emoji='🌱';lv='追问萌芽期';desc='你已经有追问意识，但还不够系统——有时会问，有时会停在半路，也容易被相关性误导。';tip='练两件事：反事实推演（「如果没有 X 会怎样」）和区分相关与因果。';}
+ else if(total<=36){emoji='⛏️';lv='追根小能手';desc='你习惯挖到根本原因，会用条件分析和反事实推演，也能界定规律的边界，属于少数派。';tip='再进一步：把挖到的规律写下来、迁移到别的场景验证，看它是否真的成立。';}
+ else{emoji='🧭';lv='底层逻辑高手';desc='你具备很强的底层逻辑思维：抓主要矛盾、反事实推演、界定边界，几乎成了一种本能。';tip='把这种能力用到更大的问题上——复杂决策、人生选择，你会比别人看得更深、更远。';}
+ const res=$('#res');res.classList.add('show');
+ res.innerHTML=`<div class="lv">${emoji}</div><h4>${lv}</h4><p>${desc}</p><p>${tip}</p>
+  <button class="next show" style="display:block;margin-top:12px" onclick="answers={};renderTest()">重新测一次</button>`;
+ res.scrollIntoView({behavior:'smooth'});
+}
+$('#sub')?.addEventListener('click',calcTest);
+render();
+</script>
+</body>
+</html>
